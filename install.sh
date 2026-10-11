@@ -332,12 +332,19 @@ run_local_alpine_install() {
     # 6. Domain Setup
     DOMAIN_INPUT="${CLI_DOMAIN:-}"
     if [ -z "$DOMAIN_INPUT" ]; then
-        if [ -t 0 ] && [ -r /dev/tty ]; then
+        if [ -r /dev/tty ]; then
             printf "\n"
             printf "%b────────────────────────────────────────────────────────────%b\n" "$CYAN" "$NC"
             printf " %b[PROMPT]%b Masukkan Domain VPS (contoh: vpn.domainanda.com)\n" "$YELLOW" "$NC"
             printf " Atau tekan ENTER jika ingin menggunakan SSL sementara (Self-Signed): "
-            read -r DOMAIN_INPUT < /dev/tty 2>/dev/null || DOMAIN_INPUT=""
+            read -r DOMAIN_INPUT < /dev/tty || DOMAIN_INPUT=""
+            printf "%b────────────────────────────────────────────────────────────%b\n" "$CYAN" "$NC"
+        elif [ -t 0 ]; then
+            printf "\n"
+            printf "%b────────────────────────────────────────────────────────────%b\n" "$CYAN" "$NC"
+            printf " %b[PROMPT]%b Masukkan Domain VPS (contoh: vpn.domainanda.com)\n" "$YELLOW" "$NC"
+            printf " Atau tekan ENTER jika ingin menggunakan SSL sementara (Self-Signed): "
+            read -r DOMAIN_INPUT || DOMAIN_INPUT=""
             printf "%b────────────────────────────────────────────────────────────%b\n" "$CYAN" "$NC"
         else
             DOMAIN_INPUT=""
