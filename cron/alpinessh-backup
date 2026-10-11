@@ -1,0 +1,3 @@
+#!/bin/sh
+# Daily autobackup to Telegram Bot for Alpine-SSH
+/usr/local/bin/alpinessh backup >/dev/null 2>&1

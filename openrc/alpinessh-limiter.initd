@@ -1,0 +1,14 @@
+#!/sbin/openrc-run
+# OpenRC init script for alpinessh-limiter (Alpine Linux)
+
+name="alpinessh-limiter"
+description="Alpine-SSH Multi-login IP Limiter Daemon"
+command="/usr/local/bin/alpinessh"
+command_args="limit daemon"
+command_background="yes"
+pidfile="/run/alpinessh-limiter.pid"
+
+depend() {
+    need net
+    after ssh-ws dropbear
+}

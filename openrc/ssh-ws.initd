@@ -1,0 +1,19 @@
+#!/sbin/openrc-run
+# OpenRC init script for ssh-ws (Alpine Linux)
+
+name="ssh-ws"
+description="Alpine-SSH WebSocket to SSH Proxy Daemon"
+command="/usr/local/bin/ssh-ws"
+command_args="-p 8880 -b 0.0.0.0 -t 127.0.0.1:109 -api-port 8081 -log /var/log/ssh-ws.log"
+command_background="yes"
+pidfile="/run/ssh-ws.pid"
+
+depend() {
+    need net
+    after dropbear sshd syslog
+}
+
+start_pre() {
+    checkpath -d -m 0755 /var/log
+    touch /var/log/ssh-ws.log
+}

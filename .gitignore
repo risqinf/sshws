@@ -1,0 +1,68 @@
+# ==============================================================================
+# Autoscript VPN: Git Ignore Patterns
+# STRICT PRIVACY: Source code files are NEVER uploaded to GitHub / Git Hosting
+# ==============================================================================
+
+# --- PRIVATE SOURCE CODE & HEADERS (NEVER COMMIT/PUSH) ---
+src/
+include/
+websocket-proxy/
+c-websocket-proxy/
+*.c
+*.h
+*.o
+*.a
+*.so
+
+# --- BUILD SCRIPTS & DEVELOPER TOOLING ---
+Makefile
+build-static.sh
+build-release.sh
+test_*.py
+__pycache__/
+*.pyc
+
+# --- TEMPORARY, CACHE & SYSTEM METADATA ---
+*.tmp
+*.log
+*.pid
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- IDE & EDITOR CONFIGS ---
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# --- RUNTIME DATA, LOGS & CREDENTIALS ---
+/etc/alpinessh/
+/var/log/ssh-ws.log
+/var/log/alpinessh.log
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.key
+*.pem
+*.pass
+
+# --- BACKUP & TEMPORARY ARCHIVES ---
+*.tar.gz.enc
+backup_*.tar.gz
+restore_*.tar.gz
+
+# ==============================================================================
+# Production Release Files Allowed for Deployment:
+#   - bin/          (pre-compiled standalone static binaries)
+#   - conf/         (runtime configuration templates)
+#   - cron/         (cron job scripts)
+#   - openrc/       (OpenRC service templates)
+#   - dist/         (distribution release archives)
+#   - install.sh    (automated dual-mode installer)
+#   - install-stagging.sh
+#   - README.md & API_DOCUMENTATION.md
+# ==============================================================================

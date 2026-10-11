@@ -1,0 +1,3 @@
+#!/bin/sh
+# Weekly SSL certificate renewal check for Alpine-SSH
+/usr/local/bin/alpinessh cert renew >/dev/null 2>&1

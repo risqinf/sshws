@@ -1,0 +1,7 @@
+# Alpine-SSH OpenSSH append settings
+Port 22
+Banner /etc/alpinessh/issue.net
+PasswordAuthentication yes
+PermitRootLogin yes
+ClientAliveInterval 30
+ClientAliveCountMax 3

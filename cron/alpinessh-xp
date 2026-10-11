@@ -1,0 +1,3 @@
+#!/bin/sh
+# Daily auto-expiration check for Alpine-SSH
+/usr/local/bin/alpinessh xp >/dev/null 2>&1
