@@ -169,58 +169,24 @@ run_online_install() {
         fi
     fi
 
-    # Prompt repo source if not passed via CLI
-    if [ -z "$ONLINE_REPO_URL" ]; then
-        printf "\n %b[PILIHAN SUMBER REPOSITORY]%b\n" "$YELLOW" "$NC"
-        printf "  %b[1]%b GitHub Resmi   : %bhttps://github.com/%s%b\n" "$GREEN" "$NC" "$CYAN" "$DEFAULT_GITHUB_REPO" "$NC"
-        printf "  %b[2]%b Custom GitHub  : Input username/repository Anda\n" "$GREEN" "$NC"
-        printf "  %b[3]%b Gitea / Custom : Input URL Git Clone atau Raw Hosting\n" "$GREEN" "$NC"
-        printf "  %b[4]%b Direct Archive : Input URL file .tar.gz atau .zip\n" "$GREEN" "$NC"
-        printf "\n Pilihan sumber [1-4, Default: 1]: "
-        read -r REPO_CHOICE
-        REPO_CHOICE="${REPO_CHOICE:-1}"
+    # Automatic repository target (Default: GitHub risqinf/sshws)
+    REPO_TARGET="${ONLINE_REPO_URL:-$DEFAULT_GITHUB_REPO}"
+    REPO_TYPE="github_default"
 
-        case "$REPO_CHOICE" in
-            1)
-                REPO_TYPE="github_default"
-                REPO_TARGET="$DEFAULT_GITHUB_REPO"
-                ;;
-            2)
-                REPO_TYPE="github_custom"
-                printf " Masukkan GitHub repository (contoh: username/alpine-ssh): "
-                read -r REPO_TARGET
-                if [ -z "$REPO_TARGET" ]; then
-                    print_warn "Input kosong, menggunakan GitHub resmi: $DEFAULT_GITHUB_REPO"
-                    REPO_TARGET="$DEFAULT_GITHUB_REPO"
-                fi
-                ;;
-            3)
-                REPO_TYPE="gitea_git"
-                printf " Masukkan URL Gitea / Git (contoh: https://gitea.domain.com/user/alpine-ssh): "
-                read -r REPO_TARGET
-                if [ -z "$REPO_TARGET" ]; then
-                    print_err "URL tidak boleh kosong!"
-                    exit 1
-                fi
-                ;;
-            4)
-                REPO_TYPE="direct_archive"
-                printf " Masukkan Direct URL archive (.tar.gz / .zip): "
-                read -r REPO_TARGET
-                if [ -z "$REPO_TARGET" ]; then
-                    print_err "URL tidak boleh kosong!"
-                    exit 1
-                fi
-                ;;
-            *)
-                REPO_TYPE="github_default"
-                REPO_TARGET="$DEFAULT_GITHUB_REPO"
-                ;;
-        esac
-    else
-        REPO_TYPE="custom_cli"
-        REPO_TARGET="$ONLINE_REPO_URL"
-    fi
+    case "$REPO_TARGET" in
+        *.tar.gz|*.zip)
+            REPO_TYPE="direct_archive"
+            ;;
+        http*github.com*|*/*)
+            REPO_TYPE="github_default"
+            REPO_TARGET="${REPO_TARGET#https://github.com/}"
+            REPO_TARGET="${REPO_TARGET#http://github.com/}"
+            REPO_TARGET="${REPO_TARGET%.git}"
+            ;;
+        http*|git@*)
+            REPO_TYPE="gitea_git"
+            ;;
+    esac
 
     TARGET_DIR="/root/alpine-ssh"
     print_info "Mempersiapkan folder instalasi di: $TARGET_DIR..."
@@ -363,20 +329,28 @@ run_local_alpine_install() {
         print_warn "Binary pre-compiled untuk $SYS_ARCH tidak ditemukan di bin/. Akan dikompilasi dari source."
     fi
 
-    # 6. Domain Setup Prompt
-    printf "\n"
-    printf "%b────────────────────────────────────────────────────────────%b\n" "$CYAN" "$NC"
-    printf " %b[PROMPT]%b Masukkan Domain VPS (contoh: vpn.domainanda.com)\n" "$YELLOW" "$NC"
-    printf " Atau tekan ENTER jika ingin menggunakan SSL sementara (Self-Signed): "
-    read -r DOMAIN_INPUT
+    # 6. Domain Setup
+    DOMAIN_INPUT="${CLI_DOMAIN:-}"
+    if [ -z "$DOMAIN_INPUT" ]; then
+        if [ -t 0 ] && [ -r /dev/tty ]; then
+            printf "\n"
+            printf "%b────────────────────────────────────────────────────────────%b\n" "$CYAN" "$NC"
+            printf " %b[PROMPT]%b Masukkan Domain VPS (contoh: vpn.domainanda.com)\n" "$YELLOW" "$NC"
+            printf " Atau tekan ENTER jika ingin menggunakan SSL sementara (Self-Signed): "
+            read -r DOMAIN_INPUT < /dev/tty 2>/dev/null || DOMAIN_INPUT=""
+            printf "%b────────────────────────────────────────────────────────────%b\n" "$CYAN" "$NC"
+        else
+            DOMAIN_INPUT=""
+        fi
+    fi
+
     if [ -n "$DOMAIN_INPUT" ]; then
         mkdir -p /etc/alpinessh
         echo "$DOMAIN_INPUT" > /etc/alpinessh/domain
         print_ok "Domain disetel: $DOMAIN_INPUT"
     else
-        print_info "Domain dilewati, akan menggunakan Self-Signed SSL sementara."
+        print_info "Menggunakan Self-Signed SSL sementara (dapat diubah nanti di menu)."
     fi
-    printf "%b────────────────────────────────────────────────────────────%b\n" "$CYAN" "$NC"
 
     # 7. Setup System Directories
     mkdir -p /usr/local/bin /usr/sbin /usr/bin /etc/alpinessh /etc/alpinessh/ssl /etc/haproxy /etc/nginx/http.d /etc/init.d /var/log
@@ -589,13 +563,18 @@ while [ $# -gt 0 ]; do
             FORCE_ONLINE=1
             shift 2
             ;;
+        --domain|-d)
+            CLI_DOMAIN="$2"
+            shift 2
+            ;;
         --help|-h)
-            printf "Alpine-SSH Installer - Dual Mode (Online & Local Folder)\n\n"
+            printf "Autoscript VPN Installer - Fully Automated (Online & Local)\n\n"
             printf "Usage: sh install.sh [OPTIONS]\n\n"
             printf "Options:\n"
-            printf "  --local, -l            Install directly using local folder (Opsi 2: Fast Copy Mode)\n"
-            printf "  --online, -o           Install online from GitHub / Gitea (Opsi 1)\n"
+            printf "  --local, -l            Force install using local folder\n"
+            printf "  --online, -o           Force online install from GitHub\n"
             printf "  --repo <URL|user/repo> Specify custom repository or archive URL\n"
+            printf "  --domain, -d <domain>  Specify VPS domain for SSL\n"
             printf "  --help, -h             Show this help message\n\n"
             exit 0
             ;;
@@ -605,7 +584,12 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-if [ -f /etc/alpine-release ] || [ "$FORCE_LOCAL" -eq 1 ] || [ "$FORCE_ONLINE" -eq 1 ]; then
+IS_ALPINE=0
+if [ -f /etc/alpine-release ] || (grep -qi "alpine" /etc/os-release 2>/dev/null); then
+    IS_ALPINE=1
+fi
+
+if [ "$IS_ALPINE" -eq 1 ] || [ "$FORCE_LOCAL" -eq 1 ] || [ "$FORCE_ONLINE" -eq 1 ]; then
     detect_project_dir || true
 
     if [ "$FORCE_LOCAL" -eq 1 ]; then
@@ -613,36 +597,15 @@ if [ -f /etc/alpine-release ] || [ "$FORCE_LOCAL" -eq 1 ] || [ "$FORCE_ONLINE" -
     elif [ "$FORCE_ONLINE" -eq 1 ]; then
         run_online_install
     else
-        # Interactive mode: Check whether local folder is detected
+        # Auto-detect mode: Instant local execution if folder exists, else download from GitHub
         if [ -n "$PROJECT_DIR" ] && is_valid_project_dir "$PROJECT_DIR"; then
             print_header
-            printf " %b[STATUS]%b Folder Alpine-SSH Terdeteksi : %b%s%b\n" "$GREEN" "$NC" "$CYAN" "$PROJECT_DIR" "$NC"
-            
-            CHECK_ARCH="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
-            check_binary_status "$PROJECT_DIR" "$CHECK_ARCH"
-            if [ -n "$BIN_SRC" ]; then
-                printf " %b[STATUS]%b Binary Statis               : %bREADY (Instalasi Super Cepat / Copy Saja)%b\n" "$GREEN" "$NC" "$YELLOW" "$NC"
-            else
-                printf " %b[STATUS]%b Binary Statis               : %bSource Code Terdeteksi (Compile Saja)%b\n" "$GREEN" "$NC" "$WHITE" "$NC"
-            fi
-            printf "%b────────────────────────────────────────────────────────────%b\n" "$CYAN" "$NC"
-            printf " %bSilakan pilih opsi instalasi:%b\n\n" "$WHITE" "$NC"
-            printf "  %b[1]%b Instalasi Online (Unduh rilis terbaru dari GitHub / Gitea)\n" "$GREEN" "$NC"
-            printf "  %b[2]%b Instalasi Folder Lokal (%s) %b[REKOMENDASI - CEPAT]%b\n" "$GREEN" "$NC" "$PROJECT_DIR" "$YELLOW" "$NC"
-            printf "\n Pilihan instalasi [1/2, Default: 2]: "
-            read -r MODE_CHOICE
-            MODE_CHOICE="${MODE_CHOICE:-2}"
-
-            if [ "$MODE_CHOICE" = "1" ]; then
-                run_online_install
-            else
-                run_local_alpine_install
-            fi
+            printf " %b[STATUS]%b Folder Autoscript VPN Terdeteksi : %b%s%b\n" "$GREEN" "$NC" "$CYAN" "$PROJECT_DIR" "$NC"
+            print_ok "Binary & Konfigurasi Siap: Melakukan instalasi instan dari folder lokal..."
+            run_local_alpine_install
         else
-            # No local folder detected -> Automatically enter Mode 1 (Online install)
             print_header
-            print_info "Folder lokal tidak terdeteksi pada direktori ini."
-            print_info "Mengaktifkan Opsi 1: Instalasi Online (GitHub / Gitea)..."
+            print_info "Folder lokal belum ada. Mengunduh rilis otomatis dari GitHub: $DEFAULT_GITHUB_REPO..."
             run_online_install
         fi
     fi
