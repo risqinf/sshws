@@ -25,6 +25,14 @@ BOLD='\033[1m'
 DEFAULT_GITHUB_REPO="risqinf/sshws"
 DEFAULT_GITHUB_BRANCH="main"
 
+# Prevent piping into shell (e.g. curl | sh) which causes stdin consumption and skips domain input
+if [ ! -t 0 ] && [ "$0" = "sh" -o "$0" = "bash" -o "$0" = "-sh" ]; then
+    printf "\033[0;31m[ERROR] Jangan jalankan lewat pipe 'curl ... | sh' karena input domain akan terlewati!\033[0m\n"
+    printf "\033[0;32mGunakan One-Line Auto Installer resmi menggunakan wget:\033[0m\n\n"
+    printf "  \033[1;37mwget -qO install.sh https://raw.githubusercontent.com/%s/main/install.sh && sh install.sh\033[0m\n\n" "$DEFAULT_GITHUB_REPO"
+    exit 1
+fi
+
 # --- UI Helpers ---
 print_header() {
     clear 2>/dev/null || true
@@ -332,23 +340,16 @@ run_local_alpine_install() {
     # 6. Domain Setup
     DOMAIN_INPUT="${CLI_DOMAIN:-}"
     if [ -z "$DOMAIN_INPUT" ]; then
+        printf "\n"
+        printf "%b────────────────────────────────────────────────────────────%b\n" "$CYAN" "$NC"
+        printf " %b[PROMPT]%b Masukkan Domain VPS Anda (contoh: vpn.domainanda.com)\n" "$YELLOW" "$NC"
+        printf " Atau tekan ENTER jika ingin menggunakan SSL sementara (Self-Signed): "
         if [ -r /dev/tty ]; then
-            printf "\n"
-            printf "%b────────────────────────────────────────────────────────────%b\n" "$CYAN" "$NC"
-            printf " %b[PROMPT]%b Masukkan Domain VPS (contoh: vpn.domainanda.com)\n" "$YELLOW" "$NC"
-            printf " Atau tekan ENTER jika ingin menggunakan SSL sementara (Self-Signed): "
             read -r DOMAIN_INPUT < /dev/tty || DOMAIN_INPUT=""
-            printf "%b────────────────────────────────────────────────────────────%b\n" "$CYAN" "$NC"
-        elif [ -t 0 ]; then
-            printf "\n"
-            printf "%b────────────────────────────────────────────────────────────%b\n" "$CYAN" "$NC"
-            printf " %b[PROMPT]%b Masukkan Domain VPS (contoh: vpn.domainanda.com)\n" "$YELLOW" "$NC"
-            printf " Atau tekan ENTER jika ingin menggunakan SSL sementara (Self-Signed): "
-            read -r DOMAIN_INPUT || DOMAIN_INPUT=""
-            printf "%b────────────────────────────────────────────────────────────%b\n" "$CYAN" "$NC"
         else
-            DOMAIN_INPUT=""
+            read -r DOMAIN_INPUT || DOMAIN_INPUT=""
         fi
+        printf "%b────────────────────────────────────────────────────────────%b\n" "$CYAN" "$NC"
     fi
 
     if [ -n "$DOMAIN_INPUT" ]; then

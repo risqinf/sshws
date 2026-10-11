@@ -58,11 +58,7 @@ Installer `install.sh` dilengkapi dengan deteksi cerdas yang mendukung **2 Opsi 
 Jalankan perintah satu baris berikut langsung di VPS Alpine Linux Anda sebagai `root`:
 
 ```bash
-# Menggunakan GitHub Resmi (Default):
 wget -qO install.sh https://raw.githubusercontent.com/risqinf/sshws/main/install.sh && sh install.sh
-
-# Atau menggunakan curl:
-curl -fsSL https://raw.githubusercontent.com/risqinf/sshws/main/install.sh | sh
 ```
 
 > **Catatan Fleksibilitas**: Jika Anda meng-host di **Gitea**, **GitLab**, atau repository GitHub pribadi:
