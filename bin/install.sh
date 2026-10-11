@@ -364,7 +364,7 @@ run_local_alpine_install() {
 
     RUNTIME_PKGS="nginx haproxy curl wget unzip tar gzip bzip2 openssh openssh-server iptables \
                   coreutils procps busybox-extras sqlite openssl certbot tzdata shadow nano \
-                  dropbear dropbear-dbclient dropbear-scp"
+                  dropbear dropbear-dbclient"
 
     if [ -n "$BIN_SRC" ]; then
         print_info "Binary statis terdeteksi: Melewati compiler toolchain (Deploy VPS Sangat Cepat!)"
