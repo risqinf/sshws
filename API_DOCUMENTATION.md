@@ -353,9 +353,9 @@ Extends the expiration of an existing account.
 
 ---
 
-### 4.8. Lock Account
-#### `POST /api/account/lock`
-Locks an account and terminates any running sessions. You can specify a cooldown duration in seconds (defaults to `300` seconds / 5 minutes), after which the limiter daemon automatically unlocks it.
+### 4.8. Lock / Ban Account
+#### `POST /api/account/lock` (or `POST /api/account/ban`)
+Locks/bans an account and terminates any running sessions. You can specify a cooldown duration in seconds (defaults to `300` seconds / 5 minutes), after which the limiter daemon automatically unbans it.
 
 **Request Body (`application/json`)**:
 ```json
@@ -369,15 +369,19 @@ Locks an account and terminates any running sessions. You can specify a cooldown
 ```json
 {
   "success": true,
-  "message": "Account buyer_123 locked for 300 seconds."
+  "message": "Account locked successfully",
+  "data": {
+    "username": "buyer_123",
+    "duration": 300
+  }
 }
 ```
 
 ---
 
-### 4.9. Unlock Account
-#### `POST /api/account/unlock`
-Immediately unlocks a previously locked account.
+### 4.9. Unlock / Unban Account
+#### `POST /api/account/unlock` (or `POST /api/account/unban`)
+Immediately unlocks/unbans a previously locked account.
 
 **Request Body (`application/json`)**:
 ```json
@@ -390,13 +394,40 @@ Immediately unlocks a previously locked account.
 ```json
 {
   "success": true,
-  "message": "Account buyer_123 unlocked successfully."
+  "message": "Account unlocked successfully",
+  "data": {
+    "username": "buyer_123"
+  }
 }
 ```
 
 ---
 
-### 4.10. Delete Account
+### 4.10. Reset Usage Quota
+#### `POST /api/account/reset-usage` (or `POST /api/account/reset-quota`)
+Resets cumulative bandwidth usage (`usage_tx` and `usage_rx`) back to `0` bytes. If the account was locked because its quota was exhausted, it will also be automatically unlocked.
+
+**Request Body (`application/json`)**:
+```json
+{
+  "username": "buyer_123"
+}
+```
+
+**Response `200 OK`**:
+```json
+{
+  "success": true,
+  "message": "Usage quota reset to 0 successfully",
+  "data": {
+    "username": "buyer_123"
+  }
+}
+```
+
+---
+
+### 4.11. Delete Account
 #### `POST /api/account/delete`
 Permanently deletes the account from the OS (`deluser`) and SQLite database.
 
