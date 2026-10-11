@@ -361,10 +361,11 @@ run_local_alpine_install() {
     # 8. Install Alpine Packages (Fast runtime only when binaries exist)
     print_info "Mengupdate apk & menginstall runtime packages yang dibutuhkan..."
     apk update
+    apk del dropbear-scp dropbear-ssh 2>/dev/null || true
 
     RUNTIME_PKGS="nginx haproxy curl wget unzip tar gzip bzip2 openssh openssh-server iptables \
                   coreutils procps busybox-extras sqlite openssl certbot tzdata shadow nano \
-                  dropbear dropbear-dbclient"
+                  dropbear dropbear-openrc"
 
     if [ -n "$BIN_SRC" ]; then
         print_info "Binary statis terdeteksi: Melewati compiler toolchain (Deploy VPS Sangat Cepat!)"
