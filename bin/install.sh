@@ -369,21 +369,20 @@ run_local_alpine_install() {
     # 8. Install Alpine Packages (Fast runtime only when binaries exist)
     print_info "Mengupdate apk & menginstall runtime packages yang dibutuhkan..."
     apk update
-    apk del dropbear-scp dropbear-ssh 2>/dev/null || true
+    apk del dropbear dropbear-openrc dropbear-scp dropbear-ssh 2>/dev/null || true
 
     RUNTIME_PKGS="nginx haproxy curl wget unzip tar gzip bzip2 openssh openssh-server iptables \
-                  coreutils procps busybox-extras sqlite openssl certbot tzdata shadow nano \
-                  dropbear dropbear-openrc"
+                  coreutils procps busybox-extras sqlite openssl certbot tzdata shadow nano"
 
     if [ -n "$BIN_SRC" ]; then
         print_info "Binary statis terdeteksi: Melewati compiler toolchain (Deploy VPS Sangat Cepat!)"
         apk add --no-cache $RUNTIME_PKGS
     else
         print_warn "Menginstall compiler toolchain (gcc, musl-dev, make) untuk kompilasi source..."
-        apk add --no-cache $RUNTIME_PKGS gcc musl-dev make
+        apk add --no-cache $RUNTIME_PKGS gcc musl-dev make zlib-dev zlib-static bzip2
     fi
 
-    # 9. Deploy Pre-compiled Static Binaries
+    # 9. Deploy Pre-compiled Static Binaries or Enforce Dropbear 2019.78
     if [ -n "$BIN_SRC" ]; then
         [ -f "$BIN_SRC/alpinessh" ] && cp -f "$BIN_SRC/alpinessh" /usr/local/bin/alpinessh
         [ -f "$BIN_SRC/ssh-ws" ] && cp -f "$BIN_SRC/ssh-ws" /usr/local/bin/ssh-ws
@@ -396,6 +395,55 @@ run_local_alpine_install() {
         [ -f /usr/sbin/dropbear ] && chmod +x /usr/sbin/dropbear 2>/dev/null || true
         [ -f /usr/bin/dropbearkey ] && chmod +x /usr/bin/dropbearkey 2>/dev/null || true
         print_ok "Binary statis berhasil disalin ke /usr/local/bin dan /usr/sbin."
+    fi
+
+    # Enforce Dropbear 2019.78 (Wajib v2019 untuk kompatibilitas VPN Tunneling)
+    NEED_DROPBEAR_BUILD=0
+    if [ ! -x /usr/sbin/dropbear ] || [ ! -x /usr/bin/dropbearkey ]; then
+        NEED_DROPBEAR_BUILD=1
+    elif ! /usr/sbin/dropbear -V 2>&1 | grep -q "2019"; then
+        print_warn "Dropbear versi non-2019 terdeteksi! Mengganti wajib dengan Dropbear v2019.78..."
+        NEED_DROPBEAR_BUILD=1
+    fi
+
+    if [ "$NEED_DROPBEAR_BUILD" -eq 1 ]; then
+        print_info "Mengunduh dan mengompilasi Dropbear v2019.78 (Wajib untuk kompatibilitas VPN)..."
+        apk add --no-cache build-base gcc musl-dev make zlib-dev zlib-static bzip2 >/dev/null 2>&1 || true
+        DROPBEAR_BUILD_DIR="/tmp/dropbear_build_$$"
+        rm -rf "$DROPBEAR_BUILD_DIR"
+        mkdir -p "$DROPBEAR_BUILD_DIR"
+        (
+            cd "$DROPBEAR_BUILD_DIR"
+            (curl -fsSL -o dropbear.tar.bz2 https://sources.openwrt.org/dropbear-2019.78.tar.bz2 2>/dev/null || \
+             wget -qO dropbear.tar.bz2 https://sources.openwrt.org/dropbear-2019.78.tar.bz2 2>/dev/null || \
+             curl -fsSL -o dropbear.tar.bz2 https://matt.ucc.asn.au/dropbear/releases/dropbear-2019.78.tar.bz2 2>/dev/null || \
+             wget -qO dropbear.tar.bz2 https://matt.ucc.asn.au/dropbear/releases/dropbear-2019.78.tar.bz2 2>/dev/null || \
+             curl -fsSL -o dropbear.tar.bz2 https://dropbear.nl/mirror/releases/dropbear-2019.78.tar.bz2 2>/dev/null)
+            tar -xjf dropbear.tar.bz2
+            cd dropbear-2019.78
+            ./configure --prefix=/usr --sysconfdir=/etc/dropbear --disable-utmp --disable-wtmp --enable-static >/dev/null 2>&1
+            make -j$(nproc 2>/dev/null || echo 2) PROGRAMS="dropbear dropbearkey dropbearconvert scp dbclient" STATIC=1 >/dev/null 2>&1
+            cp -f dropbear /usr/sbin/dropbear
+            cp -f dropbearkey /usr/bin/dropbearkey
+            cp -f dropbearconvert /usr/bin/dropbearconvert 2>/dev/null || true
+            cp -f scp /usr/bin/scp 2>/dev/null || true
+            cp -f dbclient /usr/bin/dbclient 2>/dev/null || true
+            chmod +x /usr/sbin/dropbear /usr/bin/dropbearkey /usr/bin/dropbearconvert /usr/bin/scp /usr/bin/dbclient 2>/dev/null || true
+            if [ -n "$PROJECT_DIR" ] && [ -d "$PROJECT_DIR/bin" ]; then
+                cp -f dropbear dropbearkey dropbearconvert scp dbclient "$PROJECT_DIR/bin/" 2>/dev/null || true
+                mkdir -p "$PROJECT_DIR/bin/amd64"
+                cp -f dropbear dropbearkey dropbearconvert scp dbclient "$PROJECT_DIR/bin/amd64/" 2>/dev/null || true
+            fi
+        )
+        rm -rf "$DROPBEAR_BUILD_DIR"
+        if [ -x /usr/sbin/dropbear ]; then
+            print_ok "Dropbear v2019.78 berhasil dipasang di /usr/sbin/dropbear."
+        else
+            print_err "Gagal mengompilasi Dropbear v2019.78!"
+            exit 1
+        fi
+    else
+        print_ok "Dropbear v2019.78 terverifikasi siap: $(/usr/sbin/dropbear -V 2>&1 | head -n 1)"
     fi
 
     # Compile fallback if binary not present (e.g. on new ARM hardware without pre-builds)
@@ -423,8 +471,13 @@ run_local_alpine_install() {
     [ -f "$PROJECT_DIR/conf/alpinessh-nginx.conf" ] && cp -f "$PROJECT_DIR/conf/alpinessh-nginx.conf" /etc/nginx/http.d/alpinessh.conf
     [ -f "$PROJECT_DIR/conf/alpinessh.conf" ] && cp -f "$PROJECT_DIR/conf/alpinessh.conf" /etc/alpinessh/alpinessh.conf
     [ -f "$PROJECT_DIR/conf/dropbear.conf" ] && cp -f "$PROJECT_DIR/conf/dropbear.conf" /etc/dropbear/dropbear.conf 2>/dev/null || true
+    [ -f "$PROJECT_DIR/conf/dropbear.conf" ] && cp -f "$PROJECT_DIR/conf/dropbear.conf" /etc/conf.d/dropbear 2>/dev/null || true
 
     # Deploy OpenRC init scripts
+    if [ -f "$PROJECT_DIR/openrc/dropbear.initd" ]; then
+        cp -f "$PROJECT_DIR/openrc/dropbear.initd" /etc/init.d/dropbear
+        chmod 755 /etc/init.d/dropbear
+    fi
     if [ -f "$PROJECT_DIR/openrc/ssh-ws.initd" ]; then
         cp -f "$PROJECT_DIR/openrc/ssh-ws.initd" /etc/init.d/ssh-ws
         chmod 755 /etc/init.d/ssh-ws
