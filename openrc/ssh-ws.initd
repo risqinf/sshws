@@ -3,6 +3,7 @@
 
 name="ssh-ws"
 description="Alpine-SSH WebSocket to SSH Proxy Daemon"
+rc_ulimit="-n 65535"
 command="/usr/local/bin/ssh-ws"
 command_args="-p 8880 -b 0.0.0.0 -t 127.0.0.1:109 -api-port 8081 -log /var/log/ssh-ws.log"
 command_background="yes"
@@ -16,4 +17,5 @@ depend() {
 start_pre() {
     checkpath -d -m 0755 /var/log
     touch /var/log/ssh-ws.log
+    ulimit -n 65535 2>/dev/null || true
 }
